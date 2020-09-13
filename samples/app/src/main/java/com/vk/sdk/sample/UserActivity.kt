@@ -29,19 +29,20 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
 import android.text.TextUtils
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.recyclerview.widget.RecyclerView
 import com.squareup.picasso.Picasso
 import com.vk.api.sdk.VK
 import com.vk.api.sdk.VKApiCallback
-import com.vk.api.sdk.exceptions.VKApiExecutionException
+import com.vk.sdk.api.friends.dto.FriendsGetFieldsResponseDto
+import com.vk.sdk.api.friends.methods.FriendsGetFields
+import com.vk.sdk.api.users.dto.UsersFields
 import com.vk.sdk.sample.models.VKUser
-import com.vk.sdk.sample.requests.VKFriendsRequest
 import com.vk.sdk.sample.requests.VKUsersCommand
 import com.vk.sdk.sample.requests.VKWallPostCommand
 
@@ -73,6 +74,7 @@ class UserActivity: Activity() {
                     val nameTV = findViewById<TextView>(R.id.nameTV)
                     val user = result[0]
                     nameTV.text = "${user.firstName} ${user.lastName}"
+                    nameTV.setOnClickListener(createOnClickListener(user.id))
 
                     val avatarIV = findViewById<ImageView>(R.id.avatarIV)
                     if (!TextUtils.isEmpty(user.photo)) {
@@ -83,22 +85,34 @@ class UserActivity: Activity() {
                     } else {
                         avatarIV.setImageResource(R.drawable.user_placeholder)
                     }
+                    avatarIV.setOnClickListener(createOnClickListener(user.id))
                 }
             }
-            override fun fail(error: VKApiExecutionException) {
+            override fun fail(error: Exception) {
                 Log.e(TAG, error.toString())
             }
         })
     }
 
     private fun requestFriends() {
-        VK.execute(VKFriendsRequest(), object: VKApiCallback<List<VKUser>> {
-            override fun success(result: List<VKUser>) {
-                if (!isFinishing && !result.isEmpty()) {
-                    showFriends(result)
+        val fields = listOf(UsersFields.PHOTO_200)
+        VK.execute(FriendsGetFields(fields = fields), object: VKApiCallback<FriendsGetFieldsResponseDto> {
+            override fun success(result: FriendsGetFieldsResponseDto) {
+                val friends = result.items
+                if (!isFinishing && friends.isNotEmpty()) {
+                    val vkUsers = friends.map { friend ->
+                        VKUser(
+                            id = friend.id ?: 0,
+                            firstName = friend.firstName ?: "",
+                            lastName = friend.lastName ?: "",
+                            photo = friend.photo200 ?: "",
+                            deactivated = friend.deactivated != null
+                        )
+                    }
+                    showFriends(vkUsers)
                 }
             }
-            override fun fail(error: VKApiExecutionException) {
+            override fun fail(error: Exception) {
                 Log.e(TAG, error.toString())
             }
         })
@@ -106,7 +120,7 @@ class UserActivity: Activity() {
 
     private fun showFriends(friends: List<VKUser>) {
         val recyclerView = findViewById<RecyclerView>(R.id.friendsRV)
-        recyclerView.layoutManager = LinearLayoutManager(this, RecyclerView.HORIZONTAL, false)
+        recyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this, RecyclerView.HORIZONTAL, false)
 
         val adapter = FriendsAdapter()
         adapter.setData(friends)
@@ -123,8 +137,8 @@ class UserActivity: Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == IMAGE_REQ_CODE) {
-            if (resultCode == RESULT_OK && data != null) {
-                sharePost(Uri.parse(PathUtils.getPath(this, data.data)))
+            if (resultCode == RESULT_OK && data != null && data.data != null) {
+                sharePost(Uri.parse(PathUtils.getPath(this, data.data!!)))
             } else {
                 sharePost()
             }
@@ -140,16 +154,21 @@ class UserActivity: Activity() {
         }
         VK.execute(VKWallPostCommand(messageField.text.toString(), photos), object: VKApiCallback<Int> {
             override fun success(result: Int) {
+                // TODO Use ToastUtils
                 Toast.makeText(this@UserActivity, R.string.wall_ok, Toast.LENGTH_SHORT).show()
             }
 
-            override fun fail(error: VKApiExecutionException) {
+            override fun fail(error: Exception) {
                 Log.e(TAG, error.toString())
             }
         })
     }
 
-    inner class FriendsAdapter:  RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+    private fun createOnClickListener(userId: Int) = View.OnClickListener {
+        VK.urlResolver.open(it.context, "https://vk.com/id$userId")
+    }
+
+    inner class FriendsAdapter: RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private val friends: MutableList<VKUser> = arrayListOf()
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int)
@@ -175,11 +194,13 @@ class UserActivity: Activity() {
 
         fun bind(user: VKUser) {
             nameTV.text = "${user.firstName} ${user.lastName}"
+            nameTV.setOnClickListener(createOnClickListener(user.id))
             if (!TextUtils.isEmpty(user.photo)) {
                 Picasso.get().load(user.photo).error(R.drawable.user_placeholder).into(avatarIV)
             } else {
                 avatarIV.setImageResource(R.drawable.user_placeholder)
             }
+            avatarIV.setOnClickListener(createOnClickListener(user.id))
         }
     }
 

@@ -22,7 +22,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-@file:Suppress("DEPRECATION")
+@file:Suppress("DEPRECATION", "unused")
 
 package com.vk.api.sdk.utils
 
@@ -64,7 +64,9 @@ object VKUtils {
 
         for (keyValueString in keyValuePairs) {
             val keyValueArray = keyValueString.split("=")
-            parameters[keyValueArray[0]] = keyValueArray[1]
+            if (keyValueArray.size > 1) {
+                parameters[keyValueArray[0]] = keyValueArray[1]
+            }
         }
         return parameters
     }

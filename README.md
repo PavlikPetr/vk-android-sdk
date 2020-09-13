@@ -39,7 +39,7 @@ String[] fingerprints = VKUtils.getCertificateFingerprint(this, this.getPackageN
 
 As a rule, fingerprints contains a single line. It's a fingerprint of your certificate (depends on the certificate used for your app's signing)
 
-Fingerprint Receiving via Andriod Studio
+Fingerprint Receiving via Android Studio
 ----------
 Click in right menu on **Gradle** tab (or double shift and type **Gradle**). Open your project **root** folder, then open **Tasks** and after **android**.
 Run **signingReport** task.
@@ -56,12 +56,12 @@ You can add next maven dependency in your project:
 
 You may also need to add the following to your `project/build.gradle` file.
 
-`implementation 'com.vk:androidsdk:2.1.1`
+`implementation 'com.vk:androidsdk:2.2.3`
 
 For example, your `app/build.gradle` script will contains such dependencies:
 ```
 dependencies {
-    implementation 'com.vk:androidsdk:2.1.1
+    implementation 'com.vk:androidsdk:2.2.3
 }
 ```
 
@@ -136,33 +136,12 @@ class SampleApplication: Application() {
 API Requests
 ==========
 
-Override VKRequest. For example: [VKUsersRequest](samples/app/src/main/java/com/vk/sdk/sample/requests/VKUsersRequest.kt)
-
-```kotlin
-class VKUsersRequest: VKRequest<List<VKUser>> {
-    constructor(uids: IntArray = intArrayOf()): super("users.get") {
-        if (uids.isNotEmpty()) {
-            addParam("user_ids", uids.joinToString(","))
-        }
-        addParam("fields", "photo_200")
-    }
-
-    override fun parse(r: JSONObject): List<VKUser> {
-        val users = r.getJSONArray("response")
-        val result = ArrayList<VKUser>()
-        for (i in 0 until users.length()) {
-            result.add(VKUser.parse(users.getJSONObject(i)))
-        }
-        return result
-    }
-}
-```
 Run request with VK.execute:
 
 
 ```kotlin
-VK.execute(VKUsersRequest(), object: VKApiCallback<List<VKUser>> {
-    override fun success(result: List<VKUser>) {
+VK.execute(UsersGet(), object: VKApiCallback<List<UsersUserXtrCounters>> {
+    override fun success(result: List<UsersUserXtrCounters>) {
     }
     override fun fail(error: VKApiExecutionException) {
     }

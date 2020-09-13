@@ -26,6 +26,8 @@ package com.vk.api.sdk.exceptions
 
 object VKApiCodes {
     const val CODE_COMPOSITE_EXECUTE_ERROR = Int.MIN_VALUE
+    const val CODE_IGNORED_ACCESS_TOKEN = -2
+    const val CODE_IO_ERROR = -1
     const val CODE_UNKNOWN_ERROR = 1
     const val CODE_APP_DISABLED = 2
     const val CODE_UNKNOWN_METHOD = 3
@@ -43,12 +45,14 @@ object VKApiCodes {
     const val CODE_HTTPS_REQUIRED = 16
     const val CODE_USER_VALIDATION_REQUIRED = 17
     const val CODE_USER_WAS_DELETED_OR_BANNED = 18
+    const val CODE_CONTENT_BLOCKED = 19
     const val CODE_OPERATION_DENIED_FOR_NON_STANDALONE_APP = 20
     const val CODE_OPERATION_AVAILABLE_ONLY_FOR_STANDALONE_AND_OPEN_API_APPS = 21
     const val CODE_INVALID_PHOTO_UPLOAD = 22
     const val CODE_METHOD_NOT_SUPPORTED = 23
     const val CODE_USER_CONFIRM_REQUIRED = 24
     const val CODE_TOKEN_CONFIRMATION_REQUIRED = 25
+    const val CODE_RATE_LIMIT_REACHED = 29
     const val CODE_PRIVATE_PROFILE = 30
     const val CODE_REQUIRED_ARG_NOT_FOUND = 100
     const val CODE_INVALID_APP_IDENTIFIER = 101
@@ -56,6 +60,7 @@ object VKApiCodes {
     const val CODE_TOO_MANY_CHAT_USERS = CODE_ERROR_LIMITS
     const val CODE_NOT_FOUND = 104
     const val CODE_INVALID_USER_IDENTIFIER = 113
+    const val CODE_INVALID_PHOTO_FORMAT = 129
     const val CODE_INVALID_TIMESTAMP = 150
     const val CODE_ACCESS_DENIED_TO_ALBUM = 200
     const val CODE_ACCESS_DENIED_TO_AUDIO = 201
@@ -64,8 +69,15 @@ object VKApiCodes {
     const val CODE_ACCESS_POLLS_WITHOUT_VOTE = 253
     const val CODE_PHOTO_ALBUM_LIMIT_EXCEED = 300
     const val CODE_OPERATION_NOT_PERMITTED = 500
+
+    const val CODE_VK_PAY_NOT_ENOUGH_MONEY = 504
+    const val CODE_VK_PAY_INVALID_AMOUNT = 506
+    const val CODE_VK_PAY_INVALID_PIN = 509
+
     const val CODE_ADVERTISE_CABINET_NO_PERMISSIONS_FOR_OPERATION = 600
     const val CODE_ADVERTISE_CABINET_ERROR = 603
+    const val CODE_INVITE_LINK_AVAILABLE_FOR_CLOSED_GROUPS = 713
+    const val CODE_INVITE_LINK_EXPIRED = 714
     const val CODE_VIDEO_ALREADY_ADDED = 800
     const val CODE_ERROR_VIDEO_COMMENTS_CLOSED = 801
 
@@ -83,6 +95,9 @@ object VKApiCodes {
     const val CODE_CHAT_INVITE_MAKE_LINK_DENIED = 919
     const val CODE_MSG_DELETE_FOR_ALL_FAILED = 924
     const val CODE_CHAT_NOT_ADMIN = 925
+    const val CODE_CHAT_MR_ALREADY_SEND = 939
+    const val CODE_ADD_CHAT_MEMBER_ACCESS_TO_GROUP_DENIED = 947
+    const val CODE_CALL_HAS_BEEN_FINISHED = 951
 
     const val CODE_TOO_MANY_CONTACTS_TO_SYNC = 937
 
@@ -92,10 +107,23 @@ object VKApiCodes {
     const val CODE_INVALID_SID = 1113
     const val CODE_SIGN_UP_CODE_INCORRECT = 1110
     const val CODE_SIGN_UP_PASSWORD_UNALLOWABLE = 1111
+    const val CODE_STICKERS_DISABLED = 1191
 
+    const val CODE_ERROR_APPS_MENU_TOO_MANY_APPS = 1259
     const val CODE_ACCOUNT_INVALID_SCREEN_NAME = 1260
 
     const val CODE_ERROR_MARKET_COMMENTS_CLOSED = 1401
+
+    const val CODE_TEXT_LIVE_EMPTY_MESSAGE = 2600
+    const val CODE_TEXT_LIVE_MORE_ONE_ATTACH = 2601
+    const val CODE_TEXT_LIVE_WRONG_AUTHOR = 2602
+    const val CODE_TEXT_LIVE_FINISHED = 2603
+    const val CODE_TEXT_LIVE_UNAVAILABLE = 2604
+    const val CODE_TEXT_LIVE_SERVER_ERROR = 2605
+    const val CODE_TEXT_LIVE_LARGE_MESSAGE = 2606
+
+    const val CODE_ERROR_NEED_TOKEN_EXTENSION = 3609
+    const val CODE_ERROR_USER_DEACTIVATED = 3610
 
     const val EXTRA_CAPTCHA_SID = "captcha_sid"
     const val EXTRA_CAPTCHA_KEY = "captcha_key"
@@ -104,6 +132,8 @@ object VKApiCodes {
     const val EXTRA_VALIDATION_URL = "validation_url"
     const val EXTRA_USER_BAN_INFO = "user_ban_info"
     const val EXTRA_CONFIRMATION_TEXT = "confirmation_text"
+    const val EXTRA_EXTENSION_HASH = "extend_hash"
+    const val EXTRA_ACCESS_TOKEN = "access_token"
 
     const val PARAM_DEVICE_ID = "device_id"
     const val PARAM_LANG = "lang"

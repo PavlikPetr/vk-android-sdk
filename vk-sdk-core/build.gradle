@@ -24,7 +24,20 @@
 
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply from: '../dependencies.gradle'
+apply from: "../dependencies.gradle"
+
+if (System.getenv('SDK_UPDATE') != "1") {
+    Project superApp = rootProject.findProject("lib-superapp")
+    if (superApp == null) {
+        throw new IllegalStateException("Couldn't find lib-superapp project.")
+    }
+
+    apply from: "${superApp.projectDir}/tools/publish.gradle"
+}
+
+version = sdkVersions.name
+group = 'com.vk'
+ext.POM_ARTIFACT_ID = sdkPublish.POM_ARTIFACT_ID
 
 android {
     compileSdkVersion "$sdkVersions.compileSdk".toInteger()
@@ -67,7 +80,7 @@ dependencies {
     implementation sdkLibraries.kotlin
     implementation sdkLibraries.okHttp
     implementation sdkLibraries.okHttpLoggingInterceptor
-    implementation sdkLibrariesSupport.support
+    implementation sdkLibrariesSupport.collection
 }
 
 apply from: '../publish.gradle'

@@ -24,17 +24,20 @@
 
 package com.vk.api.sdk.auth
 
-import android.content.SharedPreferences
 import android.os.Bundle
+import com.vk.api.sdk.VKKeyValueStorage
 import java.util.*
 
 class VKAccessToken(params: Map<String, String?>) {
-    internal constructor(userId: Int, accessToken: String, secret: String?) : this(mapOf(Pair(USER_ID, userId.toString()),
-                                                                                         Pair(ACCESS_TOKEN, accessToken),
-                                                                                         Pair(SECRET, secret),
-                                                                                         Pair(HTTPS_REQUIRED, "1")))
+    internal constructor(userId: Int, accessToken: String, secret: String?) : this(
+            mapOf(USER_ID to userId.toString(),
+                  ACCESS_TOKEN to accessToken,
+                  SECRET to secret,
+                  HTTPS_REQUIRED to "1"
+            )
+    )
 
-    val userId: Int?
+    val userId: Int
     val accessToken: String
     val secret: String?
     val created: Long
@@ -48,7 +51,7 @@ class VKAccessToken(params: Map<String, String?>) {
         get() = expirationDate <= 0 || created + expirationDate * 1000 > System.currentTimeMillis()
 
     init {
-        this.userId = params[USER_ID]?.toIntOrNull()
+        this.userId = params[USER_ID]?.toInt()!!
         this.accessToken = params[ACCESS_TOKEN]!!
         this.secret = params[SECRET]
         this.httpsRequired = "1" == params[HTTPS_REQUIRED]
@@ -68,13 +71,11 @@ class VKAccessToken(params: Map<String, String?>) {
         bundle.putBundle(VK_ACCESS_TOKEN_KEY, vkTokenBundle)
     }
 
-    fun save(prefs: SharedPreferences) {
+    fun save(storage: VKKeyValueStorage) {
         val tokenParams = toMap()
-        val editor = prefs.edit()
         for ((key, value) in tokenParams) {
-            editor.putString(key, value)
+            storage.putOrRemove(key, value)
         }
-        editor.apply()
     }
 
     private fun toMap(): Map<String, String?> {
@@ -84,7 +85,7 @@ class VKAccessToken(params: Map<String, String?>) {
         result[HTTPS_REQUIRED] = if (httpsRequired) "1" else "0"
         result[CREATED] = created.toString()
         result[EXPIRES_IN] = expirationDate.toString()
-        result[USER_ID] = userId?.toString()
+        result[USER_ID] = userId.toString()
         result[EMAIL] = email
         result[PHONE] = phone
         result[PHONE_ACCESS_KEY] = phoneAccessKey
@@ -103,30 +104,47 @@ class VKAccessToken(params: Map<String, String?>) {
         private const val PHONE = "phone"
         private const val PHONE_ACCESS_KEY = "phone_access_key"
 
+        val KEYS = listOf(
+                ACCESS_TOKEN,
+                EXPIRES_IN,
+                USER_ID,
+                SECRET,
+                HTTPS_REQUIRED,
+                CREATED,
+                VK_ACCESS_TOKEN_KEY,
+                EMAIL,
+                PHONE,
+                PHONE_ACCESS_KEY
+        )
+
         fun restore(bundle: Bundle?): VKAccessToken? {
             if (bundle == null) {
                 return null
             }
             val vkTokenBundle = bundle.getBundle(VK_ACCESS_TOKEN_KEY) ?: return null
-            val tokenParams = HashMap<String, String>()
+            val tokenParams = HashMap<String, String?>()
             for (key in vkTokenBundle.keySet()) {
                 tokenParams[key] = vkTokenBundle.getString(key)
             }
             return VKAccessToken(tokenParams)
         }
 
-        fun restore(preferences: SharedPreferences?): VKAccessToken? {
-            if (preferences == null) {
-                return null
+        fun remove(keyValueStorage: VKKeyValueStorage) {
+            KEYS.forEach { keyValueStorage.remove(it) }
+        }
+
+        fun restore(keyValueStorage: VKKeyValueStorage): VKAccessToken? {
+            val tokenParams = HashMap<String, String?>(KEYS.size)
+            for (key in KEYS) {
+                keyValueStorage.get(key)?.let {
+                    tokenParams[key] = it
+                }
             }
-            val tokenParams = HashMap<String, String>()
-            for (key in preferences.all.keys) {
-                tokenParams[key] = preferences.getString(key, "")
+
+            return if (tokenParams.containsKey(ACCESS_TOKEN) && tokenParams.containsKey(USER_ID)) {
+                VKAccessToken(tokenParams)
             }
-            return if (!tokenParams.containsKey(ACCESS_TOKEN)
-                    || !tokenParams.containsKey(USER_ID)) {
-                null
-            } else VKAccessToken(tokenParams)
+            else null
         }
     }
 }

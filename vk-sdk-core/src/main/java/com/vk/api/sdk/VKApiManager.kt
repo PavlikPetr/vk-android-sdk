@@ -53,6 +53,16 @@ open class VKApiManager(val config: VKApiConfig) {
     }
 
     /**
+     * Ignore all method requests with specific access token. All executions of that requests will
+     * throw [com.vk.api.sdk.exceptions.IgnoredAccessTokenException]
+     *
+     * @param accessToken token to ignore. null to allow all access tokens
+     */
+    fun ignoreAccessToken(accessToken: String?) {
+        executor.ignoreAccessToken(accessToken)
+    }
+
+    /**
      * Override credentials
      * @param call
      */
@@ -65,24 +75,14 @@ open class VKApiManager(val config: VKApiConfig) {
         return executeWithExceptionAdjust(cc)
     }
 
-    fun <T> execute(call: OauthHttpUrlPostCall, parser: VKApiResponseParser<T>? = null): T {
-        var cc: ChainCall<T> = OAuthHttpUrlChainCall(this, executor, call, parser)
-        if (call.retryCountOnBackendError != 0) {
-            cc = InternalErrorRetryChainCall(this, call.retryCountOnBackendError, cc)
-        }
-        if (call.retryCountOnBackendError != 0) {
-            cc = ValidationHandlerChainCall(this, call.retryCountOnBackendError, cc)
-        }
-        return executeWithExceptionAdjust(cc)
-    }
-
     protected open fun <T> wrapCall(call: VKMethodCall, chainCall: ChainCall<T>): ChainCall<T> {
         var cc: ChainCall<T> = if (call.skipValidation) {
             chainCall
         } else {
-            ValidationHandlerChainCall(this, call.retryCount, chainCall)
+            createValidationHandlerChainCall(call.retryCount, chainCall)
         }
-        cc = InvalidCredentialsObserverChainCall(this, cc)
+
+        cc = InvalidCredentialsObserverChainCall(this, cc, 1)
         cc = TooManyRequestRetryChainCall(this, call.retryCount, cc)
         if (call.retryCount > 0) {
             cc = InternalErrorRetryChainCall(this, call.retryCount, cc)
@@ -99,12 +99,15 @@ open class VKApiManager(val config: VKApiConfig) {
     }
 
     protected open fun <T> wrapCall(call: VKHttpPostCall, chainCall: ChainCall<T>): ChainCall<T> {
-        var cc: ChainCall<T> = ValidationHandlerChainCall(this, call.retryCount, chainCall)
+        var cc: ChainCall<T> = createValidationHandlerChainCall(call.retryCount, chainCall)
         if (call.retryCount > 0) {
             cc = InternalErrorRetryChainCall(this, call.retryCount, cc)
         }
         return cc
     }
+
+    private fun <T> createValidationHandlerChainCall(retryCount: Int, chainCall: ChainCall<T>) =
+        ValidationHandlerChainCall(this, retryCount, chainCall)
 
     @Throws(InterruptedException::class, IOException::class, VKApiException::class)
     protected open fun <T> executeWithExceptionAdjust(cc: ChainCall<T>) = cc.call(ChainArgs())!!

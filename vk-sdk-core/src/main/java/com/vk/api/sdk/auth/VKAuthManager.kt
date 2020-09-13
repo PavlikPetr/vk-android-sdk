@@ -25,15 +25,15 @@
 package com.vk.api.sdk.auth
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
+import android.util.Log
 import com.vk.api.sdk.VK
+import com.vk.api.sdk.VKKeyValueStorage
 import com.vk.api.sdk.ui.VKWebViewAuthActivity
 import com.vk.api.sdk.utils.VKUtils
 import java.util.*
 
-internal class VKAuthManager {
+internal class VKAuthManager(private val keyValueStorage: VKKeyValueStorage) {
     fun login(activity: Activity, appId: Int, scopes: Collection<VKScope>) {
         val params = VKAuthParams(appId, scopes)
         if (VKUtils.isAppInstalled(activity, VK_APP_PACKAGE_ID) && VKUtils.isIntentAvailable(activity, VK_APP_AUTH_ACTION)) {
@@ -56,30 +56,26 @@ internal class VKAuthManager {
         VKWebViewAuthActivity.startForAuth(activity, params, VK_APP_AUTH_CODE)
     }
 
-    fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?, callback: VKAuthCallback, context: Context): Boolean {
-        if (requestCode != VK_APP_AUTH_CODE || data == null) {
+    fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?, callback: VKAuthCallback): Boolean {
+        if (requestCode != VK_APP_AUTH_CODE) {
             return false
+        }
+
+        if (data == null) {
+            callback.onLoginFailed(VKAuthCallback.AUTH_CANCELED)
+            return true
         }
 
         val result = processResult(data)
         if (resultCode != Activity.RESULT_OK || result == null || result.isError) {
             callback.onLoginFailed(VKAuthCallback.AUTH_CANCELED)
         } else {
-            result.accessToken!!.save(getPreferences(context))
+            result.accessToken!!.save(keyValueStorage)
             VK.apiManager.setCredentials(result.accessToken.accessToken, result.accessToken.secret)
             callback.onLogin(result.accessToken)
         }
 
         return true
-    }
-
-    fun getAppId(context: Context): Int {
-        val resId = context.resources.getIdentifier(SDK_APP_ID, "integer", context.packageName)
-        return try {
-            context.resources.getInteger(resId)
-        } catch (e: Exception) {
-            0
-        }
     }
 
     private fun processResult(result: Intent): VKAuthResult? {
@@ -100,34 +96,35 @@ internal class VKAuthManager {
             else -> return null
         }
 
-        return if (tokenParams != null && tokenParams[VK_AUTH_ERROR] == null) VKAuthResult(VKAccessToken(tokenParams)) else null
+        return if (tokenParams != null && tokenParams[VK_AUTH_ERROR] == null) {
+            try {
+                VKAuthResult(VKAccessToken(tokenParams))
+            } catch (e: Exception) {
+                Log.e(VKAuthManager::class.java.simpleName, "Failed to get VK token", e)
+                null
+            }
+        } else null
     }
 
 
-    fun isLoggedIn(context: Context): Boolean {
-        val token = getCurrentToken(context)
+    fun isLoggedIn(): Boolean {
+        val token = getCurrentToken()
         return token != null && token.isValid
     }
 
-    fun getCurrentToken(context: Context): VKAccessToken? {
-        return VKAccessToken.restore(getPreferences(context))
+    fun getCurrentToken(): VKAccessToken? {
+        return VKAccessToken.restore(keyValueStorage)
     }
 
-    fun logout(context: Context) {
-        getPreferences(context).edit().clear().apply()
+    fun clearAccessToken() {
+        VKAccessToken.remove(keyValueStorage)
     }
-
-    fun getPreferences(context: Context): SharedPreferences = context.getSharedPreferences(PREFERENCE_NAME, Context.MODE_PRIVATE)
 
     companion object {
         const val VK_APP_PACKAGE_ID = "com.vkontakte.android"
         private const val VK_APP_AUTH_ACTION = "com.vkontakte.android.action.SDK_AUTH"
         const val VK_EXTRA_TOKEN_DATA = "extra-token-data"
         const val VK_AUTH_ERROR = "error"
-
-        private const val PREFERENCE_NAME = "com.vkontakte.android_pref_name"
-
-        private const val SDK_APP_ID = "com_vk_sdk_AppId"
 
         private const val VK_APP_AUTH_CODE = 282
     }

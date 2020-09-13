@@ -35,7 +35,7 @@ open class VKMethodCall {
             private set
         var args: MutableMap<String,String> = LinkedHashMap()
             private set
-        var retryCount: Int = Int.MAX_VALUE
+        var retryCount: Int = DEFAULT_RETRY_COUNT
             private set
         var skipValidation: Boolean = false
             private set
@@ -48,6 +48,7 @@ open class VKMethodCall {
         open fun version(version: String) = apply { this.version = version }
         open fun args(args: Map<String,String>) = apply { this.args.putAll(args) }
         open fun args(key: String, value: String) = apply { this.args[key] = value }
+        open fun args(key: String, value: Boolean) = apply { this.args[key] = if (value) "1" else "0" }
         open fun args(key: String, value: Any) = apply { this.args[key] = value.toString() }
         open fun retryCount(count: Int) = apply { this.retryCount = count }
         open fun skipValidation(skip: Boolean) = apply { this.skipValidation = skip }
@@ -69,5 +70,20 @@ open class VKMethodCall {
         this.args = b.args
         this.retryCount = b.retryCount
         this.skipValidation = b.skipValidation
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        other as VKMethodCall
+        if (method != other.method) return false
+        if (args != other.args) return false
+        return true
+    }
+    override fun hashCode() = 31 * method.hashCode() + args.hashCode()
+    override fun toString() = "VKMethodCall(method='$method', args=$args)"
+
+    companion object {
+        private const val DEFAULT_RETRY_COUNT = 4
     }
 }

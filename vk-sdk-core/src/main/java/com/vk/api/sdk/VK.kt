@@ -36,6 +36,7 @@ import com.vk.api.sdk.exceptions.VKApiException
 import com.vk.api.sdk.exceptions.VKApiExecutionException
 import com.vk.api.sdk.internal.ApiCommand
 import com.vk.api.sdk.requests.VKBooleanRequest
+import com.vk.api.sdk.utils.VKUrlResolver
 import com.vk.api.sdk.utils.VKUtils
 import java.io.IOException
 
@@ -43,13 +44,21 @@ import java.io.IOException
  * This is an entry point of VK SDK
  */
 object VK {
+    private const val SDK_APP_ID = "com_vk_sdk_AppId"
+
     @SuppressLint("StaticFieldLeak")
     private lateinit var config: VKApiConfig
     internal lateinit var apiManager: VKApiManager
-
-    private val authManager: VKAuthManager = VKAuthManager()
+    private lateinit var authManager: VKAuthManager
 
     private val tokenExpiredHandlers = ArrayList<VKTokenExpiredHandler>()
+
+    private var cachedAppId = 0
+
+    /**
+     * This field contains an instance of VKUrlResolver that can be used to open a URL in VK client.
+     */
+    val urlResolver by lazy { VKUrlResolver() }
 
     /**
      * This method initializes VK SDK with your custom config
@@ -59,7 +68,8 @@ object VK {
     fun setConfig(config: VKApiConfig) {
         this.config = config
         apiManager = VKApiManager(config)
-        authManager.getCurrentToken(config.context)?.let {
+        authManager = VKAuthManager(config.keyValueStorage)
+        authManager.getCurrentToken()?.let {
             apiManager.setCredentials(it.accessToken, it.secret)
         }
     }
@@ -78,18 +88,32 @@ object VK {
 
     /**
      * This method is used to set new credentials for future requests. E.g. if you login via your own lib
+     *
      * @param userId userId of saving user
      * @param accessToken accessToken for future requests
      * @param secret secret for future requests
-     * @param saveAccessTokenToPrefs create access token info and save it to prefs. If you pass {@code false},
-     * you will not able to use sdk execute methods
+     * @param saveAccessTokenToStorage create access token info and save it to keyValueStorage provided
+     * by [VKApiConfig] ([VKApiConfig.keyValueStorage]).
+     * If you pass {@code false} you will not able to use sdk execute methods!
      */
     @JvmStatic
-    fun setCredentials(context: Context, userId: Int, accessToken: String, secret: String?, saveAccessTokenToPrefs: Boolean) {
-        if (saveAccessTokenToPrefs) {
-            VKAccessToken(userId, accessToken, secret).save(authManager.getPreferences(context))
+    fun setCredentials(context: Context, userId: Int, accessToken: String, secret: String?, saveAccessTokenToStorage: Boolean = true) {
+        if (saveAccessTokenToStorage) {
+            VKAccessToken(userId, accessToken, secret).save(config.keyValueStorage)
         }
         apiManager.setCredentials(accessToken, secret)
+    }
+
+    /**
+     * Save access token to keyValueStorage provided by [VKApiConfig] ([VKApiConfig.keyValueStorage]).
+     *
+     * @param userId userId of saving user
+     * @param accessToken accessToken for future requests
+     * @param secret secret for future requests
+     */
+    @JvmStatic
+    fun saveAccessToken(context: Context, userId: Int, accessToken: String, secret: String?) {
+        setCredentials(context, userId, accessToken, secret, true)
     }
 
     /**
@@ -97,7 +121,7 @@ object VK {
      */
     @JvmStatic
     fun logout() {
-        authManager.logout(config.context)
+        authManager.clearAccessToken()
         VKUtils.clearAllCookies(config.context)
     }
 
@@ -105,8 +129,13 @@ object VK {
      * This method checks if user is already logged in
      */
     @JvmStatic
-    fun isLoggedIn() = authManager.isLoggedIn(config.context)
+    fun isLoggedIn() = authManager.isLoggedIn()
 
+    /**
+     * This method returns userId of currently logged in user or 0 if there is no logged in user
+     */
+    @JvmStatic
+    fun getUserId() = authManager.getCurrentToken()?.userId ?: 0
 
     /**
      * This method provide you an api version of current config
@@ -120,7 +149,7 @@ object VK {
      */
     @JvmStatic
     fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?, callback: VKAuthCallback): Boolean {
-        val result = authManager.onActivityResult(requestCode, resultCode, data, callback, config.context)
+        val result = authManager.onActivityResult(requestCode, resultCode, data, callback)
         if (result && isLoggedIn()) {
             trackVisitor()
         }
@@ -145,7 +174,7 @@ object VK {
     }
 
     internal fun handleTokenExpired() {
-        authManager.logout(config.context)
+        authManager.clearAccessToken()
 
         tokenExpiredHandlers.forEach {
             it.onTokenExpired()
@@ -175,10 +204,10 @@ object VK {
                 VKScheduler.runOnMainThread(Runnable {
                     callback?.success(result)
                 })
-            } catch (e: VKApiExecutionException) {
+            } catch (e: Exception) {
                 VKScheduler.runOnMainThread(Runnable {
-                    if (e.isInvalidCredentialsError) {
-                        VK.handleTokenExpired()
+                    if (e is VKApiExecutionException && e.isInvalidCredentialsError) {
+                        handleTokenExpired()
                     }
                     callback?.fail(e)
                 })
@@ -192,10 +221,7 @@ object VK {
      */
     @JvmStatic
     fun initialize(context: Context) {
-        val appId = authManager.getAppId(context)
-        if (appId == 0) {
-            throw RuntimeException("<integer name=\"com_vk_sdk_AppId\">your_app_id</integer> is not found in your resources.xml")
-        }
+        val appId = getAppId(context)
         setConfig(VKApiConfig(
                 context = context,
                 appId = appId,
@@ -206,9 +232,32 @@ object VK {
         }
     }
 
+    /**
+     * This method returns Application ID provided in the Manifest.
+     */
+    @JvmStatic
+    fun getAppId(context: Context): Int {
+        if (cachedAppId != 0) {
+            return cachedAppId
+        }
+
+        val resId = context.resources.getIdentifier(SDK_APP_ID, "integer", context.packageName)
+        cachedAppId = try {
+            context.resources.getInteger(resId)
+        } catch (e: Exception) {
+            0
+        }
+
+        if (cachedAppId == 0) {
+            throw RuntimeException("<integer name=\"com_vk_sdk_AppId\">your_app_id</integer> is not found in your resources.xml")
+        }
+
+        return cachedAppId
+    }
+
     @JvmStatic
     fun clearAccessToken(context: Context) {
-        authManager.getPreferences(context).edit().clear().apply()
+        authManager.clearAccessToken()
     }
 
     private fun trackVisitor() {

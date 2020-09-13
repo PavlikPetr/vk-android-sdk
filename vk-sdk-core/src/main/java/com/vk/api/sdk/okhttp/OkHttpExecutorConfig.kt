@@ -35,8 +35,8 @@ class OkHttpExecutorConfig(private val apiConfig: VKApiConfig) {
         get() = apiConfig.context
     val appId: Int
         get() = apiConfig.appId
-    val host: String
-        get() = apiConfig.httpApiHost.value
+    val hostProvider: () -> String
+        get() = apiConfig.httpApiHostProvider
     val accessToken: String
         get() = apiConfig.accessToken.value
     val secret: String?
@@ -51,15 +51,16 @@ class OkHttpExecutorConfig(private val apiConfig: VKApiConfig) {
         get() = apiConfig.postRequestsTimeout
     val logger: Logger
         get() = apiConfig.logger
+    val customEndpoint: String
+        get() = apiConfig.customApiEndpoint.value
 
     init {
         Validation.assertContextValid(context)
-        Validation.assertHttpHostValid(host)
         Validation.assertAccessTokenValid(accessToken)
     }
 
     override fun toString() = "OkHttpExecutorConfig(" +
-            "host='$host', " +
+            "host='${hostProvider()}', " +
             "accessToken='$accessToken', " +
             "secret='$secret', " +
             "logFilterCredentials=$logFilterCredentials)"

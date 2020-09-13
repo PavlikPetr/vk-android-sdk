@@ -28,7 +28,7 @@ import android.os.Bundle
 import org.json.JSONObject
 
 /**
- * See [http://vk.com/dev/errors](http://vk.com/dev/errors)
+ * See [https://vk.com/dev/errors](https://vk.com/dev/errors)
  */
 open class VKApiExecutionException
 @JvmOverloads constructor(
@@ -77,7 +77,8 @@ open class VKApiExecutionException
         get() {
             return when (code) {
                 VKApiCodes.CODE_INVALID_SIGNATURE,
-                VKApiCodes.CODE_AUTHORIZATION_FAILED -> true
+                VKApiCodes.CODE_AUTHORIZATION_FAILED,
+                VKApiCodes.CODE_ERROR_USER_DEACTIVATED -> true
                 else -> false
             }
         }
@@ -94,6 +95,9 @@ open class VKApiExecutionException
     val isCaptchaError: Boolean
         get() = code == VKApiCodes.CODE_CAPTCHA_REQUIRED
 
+    val isPasswordConfirmRequired: Boolean
+        get() = code == VKApiCodes.CODE_ERROR_NEED_TOKEN_EXTENSION
+
     val captchaSid: String
         get() = extra?.getString(VKApiCodes.EXTRA_CAPTCHA_SID, "") ?: ""
 
@@ -108,6 +112,12 @@ open class VKApiExecutionException
 
     val userBanInfo: JSONObject?
         get() = extra?.getString(VKApiCodes.EXTRA_USER_BAN_INFO)?.let { JSONObject(it) }
+
+    val extensionHash: String
+        get() = extra?.getString(VKApiCodes.EXTRA_EXTENSION_HASH, null) ?: ""
+
+    val accessToken: String?
+        get() = extra?.getString(VKApiCodes.EXTRA_ACCESS_TOKEN, null)
 
     fun hasExtra(): Boolean {
         return extra != null && extra != Bundle.EMPTY
@@ -154,7 +164,7 @@ open class VKApiExecutionException
                 VKApiExecutionException(code, method, true, json.optString("error_text")
                         ?: "", extra, errorMsg = errorMsg)
             } else {
-                val errorMsg = json.optString("error_msg") ?: ""
+                val errorMsg = json.optString("error_msg") ?: json.toString()
                 VKApiExecutionException(code, method, false, "$errorMsg | by [$method]", extra, errorMsg = errorMsg)
             }
         }

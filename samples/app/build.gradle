@@ -57,10 +57,10 @@ dependencies {
     implementation sdkLibraries.kotlin
     implementation sdkLibrariesSupport.recyclerView
     implementation sdkLibrariesSupport.appCompat
-    implementation sdkLibrariesSupport.support
     implementation (sdkLibraries.picasso) { transitive = false }
     implementation sdkLibraries.okHttp
 
     implementation project(':libapi-sdk-core')
+    implementation project(':libapi-sdk-api')
     //implementation 'com.vk:androidsdk:2.0.0'
 }
